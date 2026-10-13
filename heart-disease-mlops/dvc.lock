@@ -1,0 +1,82 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: data/raw/heart_disease_uci.csv
+      hash: md5
+      md5: 141718dc43417b8a9042a0ed4e331630
+      size: 91871
+    - path: src/preprocess.py
+      hash: md5
+      md5: 0f095229914b727c80a0be3d72f24b4a
+      size: 5059
+    outs:
+    - path: data/processed/X_test.csv
+      hash: md5
+      md5: 81041277442f53d2200cd99d6f01ec62
+      size: 112611
+    - path: data/processed/X_train.csv
+      hash: md5
+      md5: 66808b0711206e0b6daa0f5334378f0a
+      size: 449393
+    - path: data/processed/feature_names.json
+      hash: md5
+      md5: a6a88aa3d8d8547bda87b4360d7380c3
+      size: 520
+    - path: data/processed/scaler.joblib
+      hash: md5
+      md5: 90fa129f02cf79f78e6cc592fb05b8a6
+      size: 2047
+    - path: data/processed/y_test.csv
+      hash: md5
+      md5: 74720ed6fe86a3b8c9b7ae27c9b0013c
+      size: 557
+    - path: data/processed/y_train.csv
+      hash: md5
+      md5: 63ae1091ccd001e7c651c596463b2716
+      size: 2213
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: data/processed/X_test.csv
+      hash: md5
+      md5: 81041277442f53d2200cd99d6f01ec62
+      size: 112611
+    - path: data/processed/X_train.csv
+      hash: md5
+      md5: 66808b0711206e0b6daa0f5334378f0a
+      size: 449393
+    - path: data/processed/y_test.csv
+      hash: md5
+      md5: 74720ed6fe86a3b8c9b7ae27c9b0013c
+      size: 557
+    - path: data/processed/y_train.csv
+      hash: md5
+      md5: 63ae1091ccd001e7c651c596463b2716
+      size: 2213
+    - path: src/train.py
+      hash: md5
+      md5: e8bb0bd167df06cba491031b131ae480
+      size: 7331
+    outs:
+    - path: models/champion_info.json
+      hash: md5
+      md5: d4f8173b5ed216b859a7218547e0d4f5
+      size: 2054
+    - path: models/champion_model.joblib
+      hash: md5
+      md5: dfa8c3971a8297be8b47d9b870e42c89
+      size: 1855
+    - path: models/logisticregression_model.joblib
+      hash: md5
+      md5: dfa8c3971a8297be8b47d9b870e42c89
+      size: 1855
+    - path: models/randomforest_model.joblib
+      hash: md5
+      md5: ab5c3b4155ece55e0a1d265c71bf2986
+      size: 692233
+    - path: models/xgboost_model.joblib
+      hash: md5
+      md5: 3258541e7abd826d387ce46d7c49519e
+      size: 118839

@@ -1,0 +1,79 @@
+{
+  "champion": "LogisticRegression",
+  "run_id": "9c8d0dca95a44c01a33ae46766f5c3b8",
+  "metrics": {
+    "accuracy": 0.8152,
+    "precision": 0.8073,
+    "recall": 0.8713,
+    "f1": 0.8381,
+    "roc_auc": 0.924
+  },
+  "all_models": {
+    "LogisticRegression": {
+      "metrics": {
+        "accuracy": 0.8152,
+        "precision": 0.8073,
+        "recall": 0.8713,
+        "f1": 0.8381,
+        "roc_auc": 0.924
+      },
+      "run_id": "9c8d0dca95a44c01a33ae46766f5c3b8",
+      "path": "C:\\Users\\ThinkPad Pro\\Downloads\\heart-mlops-fixed\\heart-mlops\\models\\logisticregression_model.joblib"
+    },
+    "RandomForest": {
+      "metrics": {
+        "accuracy": 0.7717,
+        "precision": 0.7706,
+        "recall": 0.8317,
+        "f1": 0.8,
+        "roc_auc": 0.8932
+      },
+      "run_id": "8a258c5e45cf49faae0e51634bcdf31b",
+      "path": "C:\\Users\\ThinkPad Pro\\Downloads\\heart-mlops-fixed\\heart-mlops\\models\\randomforest_model.joblib"
+    },
+    "XGBoost": {
+      "metrics": {
+        "accuracy": 0.8098,
+        "precision": 0.8,
+        "recall": 0.8713,
+        "f1": 0.8341,
+        "roc_auc": 0.9064
+      },
+      "run_id": "1b988e76bc5c402dae1baa42b44a23d0",
+      "path": "C:\\Users\\ThinkPad Pro\\Downloads\\heart-mlops-fixed\\heart-mlops\\models\\xgboost_model.joblib"
+    }
+  },
+  "feature_names": [
+    "age",
+    "trestbps",
+    "chol",
+    "fbs",
+    "thalch",
+    "exang",
+    "oldpeak",
+    "ca",
+    "sex_Female",
+    "sex_Male",
+    "dataset_Cleveland",
+    "dataset_Hungarian",
+    "dataset_Switzerland",
+    "dataset_VA Long Beach",
+    "cp_asymptomatic",
+    "cp_atypical angina",
+    "cp_non-anginal",
+    "cp_typical angina",
+    "restecg_lv hypertrophy",
+    "restecg_normal",
+    "restecg_st-t abnormality",
+    "slope_downsloping",
+    "slope_flat",
+    "slope_upsloping",
+    "thal_fixed defect",
+    "thal_normal",
+    "thal_reversable defect",
+    "age_group",
+    "hr_age_ratio",
+    "st_slope_interaction",
+    "cp_severe"
+  ]
+}

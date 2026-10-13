@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Results — Heart Disease Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F7F5F0;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+  --text: #1A1A18;
+  --muted: #6B6B65;
+  --hint: #A8A89E;
+  --green: #0E7A52;
+  --green-light: #E8F5EE;
+  --green-mid: #1D9E75;
+  --red: #A32D2D;
+  --red-light: #FCEBEB;
+  --amber: #854F0B;
+  --amber-light: #FAEEDA;
+  --blue: #185FA5;
+  --blue-light: #E6F1FB;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;height:60px;display:flex;align-items:center;justify-content:space-between}
+.nav-brand{display:flex;align-items:center;gap:10px;font-family:'DM Serif Display',serif;font-size:18px;color:var(--text);text-decoration:none}
+.nav-dot{width:9px;height:9px;border-radius:50%;background:var(--green-mid)}
+.nav-badge{font-size:11px;font-weight:500;color:var(--muted);letter-spacing:.04em;background:var(--bg);padding:3px 10px;border-radius:20px;border:1px solid var(--border)}
+
+.steps-wrap{background:var(--surface);border-bottom:1px solid var(--border);padding:0 32px;display:flex;align-items:center;height:52px;gap:0}
+.step{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:400;color:var(--hint)}
+.step.done{color:var(--muted)}
+.step.active{color:var(--text);font-weight:500}
+.step-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;background:var(--bg);border:1px solid var(--border);color:var(--hint)}
+.step.done .step-num{background:var(--green-light);border-color:rgba(14,122,82,.2);color:var(--green);font-size:14px}
+.step.active .step-num{background:var(--green-mid);border-color:var(--green-mid);color:white}
+.step-line{flex:1;height:1px;background:var(--green-mid);margin:0 16px;max-width:80px}
+
+.page{max-width:1100px;margin:0 auto;padding:32px 24px}
+
+.page-topbar{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap}
+.page-title{font-family:'DM Serif Display',serif;font-size:28px;font-weight:400;color:var(--text);margin-bottom:6px}
+.page-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.model-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:20px;background:var(--blue-light);color:var(--blue);font-size:12px;font-weight:500;border:1px solid rgba(24,95,165,.15)}
+.model-pill-dot{width:7px;height:7px;border-radius:50%;background:var(--blue)}
+.meta-text{font-size:13px;color:var(--muted)}
+
+.action-btns{display:flex;gap:8px;flex-shrink:0}
+.btn{padding:8px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn-outline{border:1px solid var(--border-strong);background:var(--surface);color:var(--text)}
+.btn-outline:hover{background:var(--bg)}
+.btn-primary{border:none;background:var(--green-mid);color:white}
+.btn-primary:hover{background:var(--green)}
+
+.metrics-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:28px}
+.mcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px 18px}
+.mcard-label{font-size:11px;color:var(--hint);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.mcard-val{font-size:26px;font-weight:500;color:var(--text);line-height:1}
+.mcard-val.red{color:var(--red)}
+.mcard-val.amber{color:var(--amber)}
+.mcard-val.green{color:var(--green)}
+.mcard-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+.toolbar{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar-label{font-size:13px;color:var(--muted)}
+.filter-btn{padding:5px 14px;border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;background:var(--surface);color:var(--muted);cursor:pointer;transition:all .15s;font-family:'DM Sans',sans-serif}
+.filter-btn:hover{border-color:var(--border-strong);color:var(--text)}
+.filter-btn.active{background:var(--text);color:white;border-color:var(--text)}
+
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.table-scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:auto}
+thead{background:var(--bg)}
+th{padding:10px 14px;text-align:left;font-size:11px;font-weight:500;color:var(--hint);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none}
+th:hover{color:var(--text)}
+th.sort-asc::after{content:" ↑"}
+th.sort-desc::after{content:" ↓"}
+td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:#FAFAF8}
+
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.badge-high  {background:var(--red-light);  color:var(--red)}
+.badge-med   {background:var(--amber-light);color:var(--amber)}
+.badge-low   {background:var(--green-light);color:var(--green)}
+
+.prob-wrap{display:flex;align-items:center;gap:8px;min-width:120px}
+.prob-bar{flex:1;height:5px;border-radius:3px;background:var(--border);overflow:hidden}
+.prob-fill{height:100%;border-radius:3px;transition:width .3s}
+.fill-high{background:#E24B4A}
+.fill-med {background:#EF9F27}
+.fill-low {background:var(--green-mid)}
+.prob-num{font-size:12px;color:var(--muted);min-width:32px;text-align:right}
+
+.pred-num{font-size:14px;font-weight:500}
+.pred-disease   {color:var(--red)}
+.pred-nodisease {color:var(--green)}
+
+.pagination{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-top:1px solid var(--border);font-size:13px;color:var(--muted)}
+.pg-btns{display:flex;gap:4px}
+.pg-btn{width:30px;height:30px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface);font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:'DM Sans',sans-serif;color:var(--text);transition:all .1s}
+.pg-btn:hover{background:var(--bg)}
+.pg-btn.active{background:var(--text);color:white;border-color:var(--text)}
+.pg-btn:disabled{opacity:.4;cursor:not-allowed}
+
+.section-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--hint);margin-bottom:12px}
+
+.empty-state{padding:60px;text-align:center;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-dot"></div>
+    Heart Disease Predictor
+  </a>
+  <span class="nav-badge">MLOps Pipeline</span>
+</nav>
+
+<div class="steps-wrap">
+  <div class="step done">
+    <div class="step-num">✓</div>
+    <span>Upload &amp; configure</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step active">
+    <div class="step-num">2</div>
+    <span>Results</span>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-topbar">
+    <div>
+      <div class="page-title">Prediction results</div>
+      <div class="page-meta">
+        <span class="model-pill">
+          <span class="model-pill-dot"></span>
+          {{ data.model_used }}
+        </span>
+        <span class="meta-text">{{ filename }} · {{ data.total_patients }} patients</span>
+        {% if data.model_metrics %}
+        <span class="meta-text">· F1 = {{ data.model_metrics.get('f1','—') }}</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="action-btns">
+      <a href="/" class="btn btn-outline">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M11 7H3M7 3l-4 4 4 4"/></svg>
+        New prediction
+      </a>
+      <a href="/export" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M2 10v2h10v-2M7 2v7M4 7l3 3 3-3"/></svg>
+        Export CSV
+      </a>
+    </div>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="metrics-row">
+    <div class="mcard">
+      <div class="mcard-label">Total patients</div>
+      <div class="mcard-val">{{ data.total_patients }}</div>
+      <div class="mcard-sub">from uploaded file</div>
+    </div>
+    <div class="mcard">
+      <div class="mcard-label">Disease detected</div>
+      <div class="mcard-val red">{{ data.disease_count }}</div>
+      <div class="mcard-sub">{{ "%.1f"|format(data.disease_count / data.total_patients * 100) }}% of patients</div>
+    </div>
+    <div class="mcard">
+      <div class="mcard-label">High risk</div>
+      <div class="mcard-val amber">{{ data.high_risk_count }}</div>
+      <div class="mcard-sub">probability ≥ 0.70</div>
+    </div>
+    <div class="mcard">
+      <div class="mcard-label">Model F1 score</div>
+      <div class="mcard-val green">{{ data.model_metrics.get('f1','—') if data.model_metrics else '—' }}</div>
+      <div class="mcard-sub">on held-out test set</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <span class="toolbar-label">Filter:</span>
+    <button class="filter-btn active" data-filter="all">All ({{ data.total_patients }})</button>
+    <button class="filter-btn" data-filter="disease">Disease ({{ data.disease_count }})</button>
+    <button class="filter-btn" data-filter="nodisease">No disease ({{ data.no_disease_count }})</button>
+    <button class="filter-btn" data-filter="high">High risk ({{ data.high_risk_count }})</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <div class="table-scroll">
+      <table id="results-table">
+        <thead>
+          <tr>
+            <th data-col="id">ID</th>
+            <th data-col="age">Age</th>
+            <th data-col="sex">Sex</th>
+            <th data-col="dataset">Dataset</th>
+            <th data-col="cp">Chest pain</th>
+            <th data-col="trestbps">BP</th>
+            <th data-col="chol">Chol</th>
+            <th data-col="thalch">Thalch</th>
+            <th data-col="oldpeak">Oldpeak</th>
+            <th data-col="prediction">Prediction (num)</th>
+            <th data-col="probability_disease">Prob. disease</th>
+            <th data-col="risk_level">Risk level</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span id="page-info">Showing 1–20 of {{ data.total_patients }}</span>
+      <div class="pg-btns" id="pg-btns"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const ALL_RESULTS = {{ data.results | tojson }};
+const PAGE_SIZE   = 20;
+
+let filtered     = [...ALL_RESULTS];
+let currentPage  = 1;
+let sortCol      = null;
+let sortDir      = 1;
+
+function riskClass(r) {
+  if (r==='High')   return 'badge-high';
+  if (r==='Medium') return 'badge-med';
+  return 'badge-low';
+}
+function fillClass(p) {
+  if (p>=0.70) return 'fill-high';
+  if (p>=0.40) return 'fill-med';
+  return 'fill-low';
+}
+function predClass(p) { return p===1 ? 'pred-disease' : 'pred-nodisease'; }
+function safe(v)      { return (v===null||v===undefined) ? '—' : v; }
+
+function renderTable() {
+  const start = (currentPage-1)*PAGE_SIZE;
+  const slice = filtered.slice(start, start+PAGE_SIZE);
+  const tbody = document.getElementById('table-body');
+  if (slice.length===0) {
+    tbody.innerHTML = '<tr><td colspan="12" class="empty-state">No patients match this filter.</td></tr>';
+  } else {
+    tbody.innerHTML = slice.map(r => `
+      <tr data-filter="${r.prediction===1?'disease':'nodisease'}" data-risk="${r.risk_level.toLowerCase()}">
+        <td>${safe(r.id)}</td>
+        <td>${safe(r.age)}</td>
+        <td>${safe(r.sex)}</td>
+        <td>${safe(r.dataset)}</td>
+        <td>${safe(r.cp)}</td>
+        <td>${safe(r.trestbps)}</td>
+        <td>${safe(r.chol)}</td>
+        <td>${safe(r.thalch)}</td>
+        <td>${safe(r.oldpeak)}</td>
+        <td><span class="pred-num ${predClass(r.prediction)}">${r.prediction}</span></td>
+        <td>
+          <div class="prob-wrap">
+            <div class="prob-bar"><div class="prob-fill ${fillClass(r.probability_disease)}" style="width:${Math.round(r.probability_disease*100)}%"></div></div>
+            <span class="prob-num">${r.probability_disease.toFixed(2)}</span>
+          </div>
+        </td>
+        <td><span class="badge ${riskClass(r.risk_level)}">${r.risk_level}</span></td>
+      </tr>`).join('');
+  }
+  document.getElementById('page-info').textContent =
+    `Showing ${start+1}–${Math.min(start+PAGE_SIZE, filtered.length)} of ${filtered.length}`;
+  renderPagination();
+}
+
+function renderPagination() {
+  const total = Math.ceil(filtered.length / PAGE_SIZE);
+  const pg = document.getElementById('pg-btns');
+  pg.innerHTML = '';
+  const mkBtn = (label, page, active, disabled) => {
+    const b = document.createElement('button');
+    b.className = 'pg-btn' + (active?' active':'');
+    b.textContent = label;
+    b.disabled = disabled;
+    if (!disabled) b.onclick = () => { currentPage=page; renderTable(); };
+    return b;
+  };
+  pg.appendChild(mkBtn('‹', currentPage-1, false, currentPage===1));
+  for (let i=1; i<=total; i++) {
+    if (total<=7 || i===1 || i===total || Math.abs(i-currentPage)<=1) {
+      pg.appendChild(mkBtn(i, i, i===currentPage, false));
+    } else if (Math.abs(i-currentPage)===2) {
+      const sp = document.createElement('span');
+      sp.textContent='…'; sp.style.cssText='padding:4px 4px;font-size:13px;color:var(--hint)';
+      pg.appendChild(sp);
+    }
+  }
+  pg.appendChild(mkBtn('›', currentPage+1, false, currentPage===total||total===0));
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const f = btn.dataset.filter;
+    if (f==='all')       filtered = [...ALL_RESULTS];
+    else if (f==='disease')   filtered = ALL_RESULTS.filter(r=>r.prediction===1);
+    else if (f==='nodisease') filtered = ALL_RESULTS.filter(r=>r.prediction===0);
+    else if (f==='high')      filtered = ALL_RESULTS.filter(r=>r.risk_level==='High');
+    currentPage=1; renderTable();
+  });
+});
+
+// Sort columns
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol===col) sortDir*=-1; else { sortCol=col; sortDir=1; }
+    document.querySelectorAll('th').forEach(t=>t.classList.remove('sort-asc','sort-desc'));
+    th.classList.add(sortDir===1?'sort-asc':'sort-desc');
+    filtered.sort((a,b)=>{
+      const av=a[col], bv=b[col];
+      if (av===null||av===undefined) return 1;
+      if (bv===null||bv===undefined) return -1;
+      return av<bv ? -sortDir : av>bv ? sortDir : 0;
+    });
+    currentPage=1; renderTable();
+  });
+});
+
+renderTable();
+</script>
+</body>
+</html>

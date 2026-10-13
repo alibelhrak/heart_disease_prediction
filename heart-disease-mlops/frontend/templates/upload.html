@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heart Disease Predictor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F7F5F0;
+  --surface: #FFFFFF;
+  --border: rgba(0,0,0,0.10);
+  --border-strong: rgba(0,0,0,0.18);
+  --text: #1A1A18;
+  --muted: #6B6B65;
+  --hint: #A8A89E;
+  --green: #0E7A52;
+  --green-light: #E8F5EE;
+  --green-mid: #1D9E75;
+  --red-light: #FEF0EE;
+  --red: #C0392B;
+  --amber: #92600A;
+  --amber-light: #FEF6E4;
+  --blue: #1A4A8A;
+  --blue-light: #EEF4FF;
+  --purple: #4A3A8A;
+  --purple-light: #F0EEFF;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Nav ───────────────────────────────────────── */
+nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px;
+  color: var(--text);
+  text-decoration: none;
+}
+.nav-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  background: var(--green-mid);
+}
+.nav-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: .04em;
+  background: var(--bg);
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+}
+
+/* ── Steps ─────────────────────────────────────── */
+.steps-wrap {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  gap: 0;
+}
+.step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--hint);
+}
+.step.active { color: var(--text); font-weight: 500; }
+.step-num {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 500;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--hint);
+}
+.step.active .step-num {
+  background: var(--green-mid);
+  border-color: var(--green-mid);
+  color: white;
+}
+.step-line {
+  flex: 1; height: 1px;
+  background: var(--border);
+  margin: 0 16px;
+  max-width: 80px;
+}
+
+/* ── Page layout ────────────────────────────────── */
+.page {
+  max-width: 760px;
+  margin: 48px auto;
+  padding: 0 24px;
+}
+
+.page-header {
+  margin-bottom: 36px;
+}
+.page-header h1 {
+  font-family: 'DM Serif Display', serif;
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+.page-header p {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ── Section label ──────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--hint);
+  margin-bottom: 12px;
+}
+
+/* ── Upload zone ────────────────────────────────── */
+.upload-zone {
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 48px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  margin-bottom: 32px;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--green-mid); background: var(--green-light); }
+.upload-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.upload-icon-wrap {
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+}
+.upload-icon-wrap svg { opacity: .6; }
+.upload-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+.upload-sub   { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+.upload-btn-fake {
+  display: inline-block;
+  padding: 8px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  background: white;
+  pointer-events: none;
+}
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--green-light);
+  border: 1px solid rgba(14,122,82,.2);
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 500;
+}
+.file-chip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green-mid); }
+
+/* ── Model grid ─────────────────────────────────── */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 14px;
+  margin-bottom: 36px;
+}
+.model-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: border-color .2s, box-shadow .2s;
+  position: relative;
+  user-select: none;
+}
+.model-card:hover { border-color: var(--border-strong); }
+.model-card.selected { border-color: var(--green-mid); box-shadow: 0 0 0 3px rgba(29,158,117,.12); }
+.model-card input[type="radio"] { position: absolute; opacity: 0; }
+
+.model-check {
+  position: absolute;
+  top: 14px; right: 14px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--green-mid);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.model-card.selected .model-check { opacity: 1; }
+.model-check::after {
+  content: '';
+  display: block;
+  width: 5px; height: 9px;
+  border-right: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(45deg) translate(-1px,-2px);
+}
+
+.model-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 20px;
+  margin-bottom: 12px;
+}
+.tag-green  { background: var(--green-light);  color: var(--green); }
+.tag-blue   { background: var(--blue-light);   color: var(--blue); }
+.tag-purple { background: var(--purple-light); color: var(--purple); }
+
+.model-name {
+  font-size: 14px; font-weight: 500;
+  color: var(--text); margin-bottom: 6px;
+}
+.model-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+.model-f1   { font-size: 11px; color: var(--hint); margin-top: 10px; font-weight: 500; }
+
+/* ── Submit row ─────────────────────────────────── */
+.submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.submit-hint { font-size: 13px; color: var(--muted); }
+.submit-btn {
+  padding: 12px 32px;
+  background: var(--green-mid);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: background .2s, transform .1s;
+  display: flex; align-items: center; gap: 8px;
+}
+.submit-btn:hover   { background: var(--green); }
+.submit-btn:active  { transform: scale(.98); }
+.submit-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Error ──────────────────────────────────────── */
+.error-box {
+  background: #FEF0EE;
+  border: 1px solid rgba(192,57,43,.2);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 13px;
+  color: var(--red);
+  margin-bottom: 24px;
+}
+
+/* ── Info cards ─────────────────────────────────── */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 12px;
+  margin-bottom: 36px;
+}
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+}
+.info-card-label { font-size: 11px; color: var(--hint); font-weight: 500; margin-bottom: 4px; text-transform:uppercase; letter-spacing:.04em; }
+.info-card-val   { font-size: 20px; font-weight: 500; color: var(--text); }
+.info-card-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-brand" href="/">
+    <div class="nav-dot"></div>
+    Heart Disease Predictor
+  </a>
+  <span class="nav-badge">MLOps Pipeline</span>
+</nav>
+
+<div class="steps-wrap">
+  <div class="step active">
+    <div class="step-num">1</div>
+    <span>Upload &amp; configure</span>
+  </div>
+  <div class="step-line"></div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <span>Results</span>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Predict heart disease<br><em>from clinical data</em></h1>
+    <p>Upload a CSV matching the UCI Heart Disease schema, choose a model, and get instant predictions for every patient row.</p>
+  </div>
+
+  {% if error %}
+  <div class="error-box">{{ error }}</div>
+  {% endif %}
+
+  <form method="POST" action="/predict" enctype="multipart/form-data" id="main-form">
+
+    <div class="section-label">Dataset</div>
+    <div class="upload-zone" id="drop-zone">
+      <input type="file" name="file" id="file-input" accept=".csv" required>
+      <div class="upload-icon-wrap">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-title">Drop your CSV file here</div>
+      <div class="upload-sub">heart_disease_uci.csv or any compatible file</div>
+      <div class="upload-btn-fake">Browse file</div>
+      <div id="file-chip" style="display:none">
+        <span class="file-chip">
+          <span class="file-chip-dot"></span>
+          <span id="file-name"></span>
+        </span>
+      </div>
+    </div>
+
+    <div class="section-label">Choose a model</div>
+    <div class="model-grid">
+      <label class="model-card" id="card-lr">
+        <input type="radio" name="model" value="LogisticRegression">
+        <div class="model-check"></div>
+        <div class="model-tag tag-green">Baseline</div>
+        <div class="model-name">Logistic Regression</div>
+        <div class="model-desc">Fast and interpretable. Shows which features matter most clinically.</div>
+        <div class="model-f1">F1 = 0.838</div>
+      </label>
+      <label class="model-card" id="card-rf">
+        <input type="radio" name="model" value="RandomForest">
+        <div class="model-check"></div>
+        <div class="model-tag tag-blue">Ensemble</div>
+        <div class="model-name">Random Forest</div>
+        <div class="model-desc">Handles missing values and non-linear feature interactions.</div>
+        <div class="model-f1">F1 = 0.800</div>
+      </label>
+      <label class="model-card selected" id="card-xgb">
+        <input type="radio" name="model" value="XGBoost" checked>
+        <div class="model-check"></div>
+        <div class="model-tag tag-purple">Champion ★</div>
+        <div class="model-name">XGBoost</div>
+        <div class="model-desc">Gradient boosting with class-imbalance correction. Best F1 score.</div>
+        <div class="model-f1">F1 = 0.843</div>
+      </label>
+    </div>
+
+    <div class="submit-row">
+      <span class="submit-hint" id="submit-hint">Select a CSV file to continue</span>
+      <button type="submit" class="submit-btn" id="submit-btn" disabled>
+        Run predictions
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+const fileInput = document.getElementById('file-input');
+const dropZone  = document.getElementById('drop-zone');
+const fileChip  = document.getElementById('file-chip');
+const fileName  = document.getElementById('file-name');
+const submitBtn = document.getElementById('submit-btn');
+const submitHint= document.getElementById('submit-hint');
+
+function setFile(name, rows) {
+  fileName.textContent = name;
+  fileChip.style.display = 'block';
+  submitBtn.disabled = false;
+  submitHint.textContent = 'Ready to run predictions';
+}
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) setFile(e.target.files[0].name);
+});
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag');
+  if (e.dataTransfer.files[0]) {
+    fileInput.files = e.dataTransfer.files;
+    setFile(e.dataTransfer.files[0].name);
+  }
+});
+
+// Model card selection
+document.querySelectorAll('.model-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+});
+
+document.getElementById('main-form').addEventListener('submit', () => {
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6" stroke-dasharray="12 24" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 8 8" to="360 8 8" dur="0.8s" repeatCount="indefinite"/></circle></svg> Running…`;
+});
+</script>
+</body>
+</html>
