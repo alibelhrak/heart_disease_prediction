@@ -2,10 +2,15 @@
 Flask frontend — runs on port 5000.
 Talks to FastAPI on port 8000.
 
-FIX: Results stored server-side (temp file) instead of Flask cookie session,
-     because 920 rows of JSON (~45KB) far exceeds the 4KB cookie limit.
+Results are stored server-side (in RESULT_STORE) instead of in the Flask
+cookie session, because 920 rows of JSON (~45KB) far exceeds the 4KB limit.
+
+RESULT_STORE is bounded (oldest entries are evicted) and each session keeps
+at most one entry, so memory does not grow without limit. /export streams
+the CSV from memory, so no temporary files are left on disk.
 """
-import os, json, uuid, tempfile, requests
+import os, io, csv, uuid, requests
+from collections import OrderedDict
 from pathlib import Path
 from flask import (Flask, render_template, request,
                    redirect, url_for, session, jsonify, send_file)
@@ -14,10 +19,39 @@ from flask import (Flask, render_template, request,
 HERE = Path(__file__).resolve().parent
 app  = Flask(__name__, template_folder=str(HERE / "templates"),
                         static_folder=str(HERE / "static"))
-app.secret_key = "heart-mlops-secret-2024"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "heart-mlops-secret-2024")
 
-# Server-side result store (temp dir, survives the request/response cycle)
-RESULT_STORE = {}
+# Server-side result store: insertion-ordered so the oldest can be evicted
+RESULT_STORE: "OrderedDict[str, dict]" = OrderedDict()
+MAX_STORED_RESULTS = int(os.environ.get("MAX_STORED_RESULTS", "50"))
+
+EXPORT_COLS = ["id","age","sex","dataset","cp","trestbps","chol","thalch",
+               "oldpeak","prediction","probability_disease","probability_no_disease",
+               "risk_level","interpretation","model_used"]
+
+
+def store_result(entry: dict) -> str:
+    """Save a result, replacing this session's previous one and evicting the
+    oldest entries once MAX_STORED_RESULTS is exceeded. Returns the new id."""
+    old_id = session.get("result_id")
+    if old_id is not None:
+        RESULT_STORE.pop(old_id, None)
+    result_id = str(uuid.uuid4())
+    RESULT_STORE[result_id] = entry
+    while len(RESULT_STORE) > MAX_STORED_RESULTS:
+        RESULT_STORE.popitem(last=False)
+    session["result_id"] = result_id
+    return result_id
+
+
+def results_to_csv(results: list) -> bytes:
+    """Serialise prediction rows to CSV with proper quoting."""
+    buf = io.StringIO()
+    writer = csv.writer(buf, lineterminator="\n")
+    writer.writerow(EXPORT_COLS)
+    for r in results:
+        writer.writerow(["" if r.get(c) is None else r.get(c) for c in EXPORT_COLS])
+    return buf.getvalue().encode("utf-8")
 
 FASTAPI_URL  = os.environ.get("FASTAPI_URL", "http://localhost:8000")
 
@@ -64,13 +98,7 @@ def predict():
         return render_template("upload.html", error=f"Prediction failed: {e}")
 
     # Store results server-side (avoids 4KB cookie overflow)
-    result_id = str(uuid.uuid4())
-    RESULT_STORE[result_id] = {
-        "data":     data,
-        "model":    model_name,
-        "filename": f.filename,
-    }
-    session["result_id"] = result_id
+    store_result({"data": data, "model": model_name, "filename": f.filename})
     return redirect(url_for("results"))
 
 
@@ -98,25 +126,7 @@ def export():
     if not results:
         return redirect(url_for("results"))
 
-    cols = ["id","age","sex","dataset","cp","trestbps","chol","thalch",
-            "oldpeak","prediction","probability_disease","probability_no_disease",
-            "risk_level","interpretation","model_used"]
-
-    lines = [",".join(cols)]
-    for r in results:
-        row = []
-        for c in cols:
-            v = r.get(c, "")
-            s = "" if v is None else str(v)
-            row.append(f'"{s}"' if "," in s else s)
-        lines.append(",".join(row))
-
-    csv_bytes = "\n".join(lines).encode("utf-8")
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode="wb")
-    tmp.write(csv_bytes)
-    tmp.close()
-
-    return send_file(tmp.name, as_attachment=True,
+    return send_file(io.BytesIO(results_to_csv(results)), as_attachment=True,
                      download_name="heart_disease_predictions.csv",
                      mimetype="text/csv")
 

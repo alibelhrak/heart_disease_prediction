@@ -1,11 +1,12 @@
 """
 DVC Stage 2: train
-Input:  data/processed/ splits
+Input:  data/processed/ splits, params.yaml
 Output: models/  (all 3 models + champion_info.json)
 
 Run from project root: python src/train.py
 """
-import json, joblib, mlflow, mlflow.sklearn
+import json, os, joblib, mlflow, mlflow.sklearn
+import yaml
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -21,8 +22,38 @@ ROOT      = Path(__file__).resolve().parent.parent
 PROC      = ROOT / "data" / "processed"
 MODEL_DIR = ROOT / "models"
 MLRUNS    = ROOT / "mlruns"
+PARAMS_FILE = ROOT / "params.yaml"
 
 EXPERIMENT = "heart-disease-mlops"
+
+
+def load_params(path: Path = None) -> dict:
+    """Read hyperparameters from params.yaml (tracked by DVC)."""
+    with open(path or PARAMS_FILE) as fh:
+        return yaml.safe_load(fh)
+
+
+def build_grids(params: dict, spw: float, random_state: int) -> dict:
+    """Turn params.yaml sections into (estimator, param_grid) pairs."""
+    lr_p, rf_p, xg_p = (params["logistic_regression"], params["random_forest"],
+                        params["xgboost"])
+    return {
+        "LogisticRegression": (
+            LogisticRegression(max_iter=lr_p.get("max_iter", 1000),
+                               random_state=random_state),
+            {"C": lr_p["C"]},
+        ),
+        "RandomForest": (
+            RandomForestClassifier(random_state=random_state),
+            {k: rf_p[k] for k in ("n_estimators", "max_depth", "min_samples_split")},
+        ),
+        "XGBoost": (
+            xgb.XGBClassifier(random_state=random_state, scale_pos_weight=spw,
+                              eval_metric="logloss"),
+            {k: xg_p[k] for k in ("n_estimators", "max_depth",
+                                  "learning_rate", "subsample")},
+        ),
+    }
 
 
 def load_data():
@@ -35,40 +66,50 @@ def load_data():
 
 
 def compute_metrics(y_true, y_pred, y_prob) -> dict:
+    # ROC-AUC is undefined when y_true has a single class; scikit-learn either
+    # raises or returns NaN depending on version, so handle it explicitly.
+    if len(np.unique(y_true)) < 2:
+        roc_auc = float("nan")
+    else:
+        roc_auc = round(float(roc_auc_score(y_true, y_prob)), 4)
     return {
         "accuracy":  round(float(accuracy_score(y_true, y_pred)), 4),
         "precision": round(float(precision_score(y_true, y_pred, zero_division=0)), 4),
         "recall":    round(float(recall_score(y_true, y_pred, zero_division=0)), 4),
         "f1":        round(float(f1_score(y_true, y_pred, zero_division=0)), 4),
-        "roc_auc":   round(float(roc_auc_score(y_true, y_prob)), 4),
+        "roc_auc":   roc_auc,
     }
 
 
-def run_grid(name, estimator, param_grid, X_train, y_train, X_test, y_test):
+def run_grid(name, estimator, param_grid, X_train, y_train, X_test, y_test,
+             cv_folds=5, scoring="f1", random_state=42):
     """GridSearchCV + MLflow logging. Returns (best_model, metrics, run_id)."""
-    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv = StratifiedKFold(n_splits=cv_folds, shuffle=True, random_state=random_state)
     print(f"\n{'='*55}")
     print(f"  Training: {name}")
 
     with mlflow.start_run(run_name=name) as run:
         mlflow.log_param("model_type", name)
-        mlflow.log_param("cv_folds", 5)
+        mlflow.log_param("cv_folds", cv_folds)
 
         grid = GridSearchCV(
             estimator, param_grid,
-            scoring="f1", cv=cv, n_jobs=-1, refit=True, verbose=0,
+            scoring=scoring, cv=cv, n_jobs=-1, refit=True, verbose=0,
         )
         grid.fit(X_train, y_train)
         best = grid.best_estimator_
 
         mlflow.log_params({f"best_{k}": v for k, v in grid.best_params_.items()})
-        mlflow.log_metric("cv_best_f1", round(float(grid.best_score_), 4))
+        mlflow.log_metric(f"cv_best_{scoring}", round(float(grid.best_score_), 4))
 
         y_pred = best.predict(X_test)
         y_prob = best.predict_proba(X_test)[:, 1]
         metrics = compute_metrics(y_test, y_pred, y_prob)
         mlflow.log_metrics(metrics)
-        mlflow.sklearn.log_model(best, artifact_path="model")
+        # cloudpickle works on MLflow 2.x and 3.x (3.x defaults to skops,
+        # which rejects tree models such as RandomForest)
+        mlflow.sklearn.log_model(best, artifact_path="model",
+                                 serialization_format="cloudpickle")
 
         print(f"  Best params : {grid.best_params_}")
         print(f"  Test metrics: {metrics}")
@@ -78,51 +119,33 @@ def run_grid(name, estimator, param_grid, X_train, y_train, X_test, y_test):
         return best, metrics, run.info.run_id
 
 
-def train():
+def train(params: dict = None):
+    params = params or load_params()
+    data_p = params.get("data", {})
+    eval_p = params.get("evaluation", {})
+    random_state = data_p.get("random_state", 42)
+    cv_folds     = eval_p.get("cv_folds", 5)
+    metric       = eval_p.get("primary_metric", "f1")
+
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-    # MLflow — store runs next to project
-    mlflow.set_tracking_uri("sqlite:///mlflow.db")
+    # MLflow — store runs next to project (override with MLFLOW_TRACKING_URI)
+    mlflow.set_tracking_uri(os.environ.get("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db"))
     mlflow.set_experiment(EXPERIMENT)
 
     X_train, X_test, y_train, y_test = load_data()
     spw = float((y_train == 0).sum() / max((y_train == 1).sum(), 1))
 
     results = {}
+    for name, (estimator, grid) in build_grids(params, spw, random_state).items():
+        model, metrics, run_id = run_grid(
+            name, estimator, grid, X_train, y_train, X_test, y_test,
+            cv_folds=cv_folds, scoring=metric, random_state=random_state,
+        )
+        results[name] = {"model": model, "metrics": metrics, "run_id": run_id}
 
-    # ── 1. Logistic Regression ────────────────────────────────────────────
-    lr, lr_m, lr_rid = run_grid(
-        "LogisticRegression",
-        LogisticRegression(max_iter=1000, random_state=42),
-        {"C": [0.01, 0.1, 1, 10, 100]},
-        X_train, y_train, X_test, y_test,
-    )
-    results["LogisticRegression"] = {"model": lr, "metrics": lr_m, "run_id": lr_rid}
-
-    # ── 2. Random Forest ──────────────────────────────────────────────────
-    rf, rf_m, rf_rid = run_grid(
-        "RandomForest",
-        RandomForestClassifier(random_state=42),
-        {"n_estimators": [100, 200], "max_depth": [4, 6, None], "min_samples_split": [2, 5]},
-        X_train, y_train, X_test, y_test,
-    )
-    results["RandomForest"] = {"model": rf, "metrics": rf_m, "run_id": rf_rid}
-
-    # ── 3. XGBoost ────────────────────────────────────────────────────────
-    xg, xg_m, xg_rid = run_grid(
-        "XGBoost",
-        xgb.XGBClassifier(
-            random_state=42, scale_pos_weight=spw,
-            eval_metric="logloss", use_label_encoder=False,
-        ),
-        {"n_estimators": [100, 200], "max_depth": [3, 5],
-         "learning_rate": [0.05, 0.1], "subsample": [0.8, 1.0]},
-        X_train, y_train, X_test, y_test,
-    )
-    results["XGBoost"] = {"model": xg, "metrics": xg_m, "run_id": xg_rid}
-
-    # ── Select champion by F1 ────────────────────────────────────────────
-    champion_name = max(results, key=lambda k: results[k]["metrics"]["f1"])
+    # ── Select champion by the primary metric ────────────────────────────
+    champion_name = max(results, key=lambda k: results[k]["metrics"][metric])
     champ = results[champion_name]
 
     print(f"\n{'='*55}")
@@ -138,7 +161,7 @@ def train():
         all_models_info[name] = {
             "metrics": res["metrics"],
             "run_id":  res["run_id"],
-            "path":    str(path),
+            "path":    path.name,
         }
         print(f"  Saved {name} → {path.name}")
 
@@ -152,7 +175,8 @@ def train():
         "all_models":     all_models_info,
         "feature_names":  list(X_train.columns),
     }
-    json.dump(champion_info, open(MODEL_DIR / "champion_info.json", "w"), indent=2)
+    with open(MODEL_DIR / "champion_info.json", "w") as fh:
+        json.dump(champion_info, fh, indent=2)
     print(f"\nChampion saved → models/champion_model.joblib")
     print(f"Metadata saved → models/champion_info.json")
 

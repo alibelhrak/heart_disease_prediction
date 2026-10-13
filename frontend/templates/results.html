@@ -175,7 +175,7 @@ tbody tr:hover td{background:#FAFAF8}
     <div class="mcard">
       <div class="mcard-label">Disease detected</div>
       <div class="mcard-val red">{{ data.disease_count }}</div>
-      <div class="mcard-sub">{{ "%.1f"|format(data.disease_count / data.total_patients * 100) }}% of patients</div>
+      <div class="mcard-sub">{{ "%.1f"|format(data.disease_count / data.total_patients * 100 if data.total_patients else 0) }}% of patients</div>
     </div>
     <div class="mcard">
       <div class="mcard-label">High risk</div>

@@ -3,7 +3,10 @@ stages:
     cmd: python src/preprocess.py
     deps:
       - src/preprocess.py
+      - src/features.py
       - data/raw/heart_disease_uci.csv
+    params:
+      - data
     outs:
       - data/processed/X_train.csv
       - data/processed/X_test.csv
@@ -20,6 +23,12 @@ stages:
       - data/processed/X_test.csv
       - data/processed/y_train.csv
       - data/processed/y_test.csv
+    params:
+      - data
+      - evaluation
+      - logistic_regression
+      - random_forest
+      - xgboost
     outs:
       - models/champion_model.joblib
       - models/logisticregression_model.joblib

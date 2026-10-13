@@ -11,9 +11,49 @@ env:
   DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/heart-disease-app
 
 jobs:
+  # ── Job 0: Tests + coverage ────────────────────────────────────────────────
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run pytest with branch coverage
+        run: >-
+          pytest --cov --cov-branch
+          --cov-report=term-missing
+          --cov-report=xml
+          --cov-report=html
+          --cov-fail-under=60
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          echo "## Test coverage" >> "$GITHUB_STEP_SUMMARY"
+          coverage report --format=markdown >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 30
+
   # ── Job 1: Train & Evaluate ─────────────────────────────────────────────────
   train-and-evaluate:
     name: Train & Evaluate
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,17 +77,7 @@ jobs:
         run: python src/train.py
 
       - name: Check F1 threshold
-        run: |
-          python -c "
-          import json, sys
-          info = json.load(open('models/champion_info.json'))
-          f1 = info['metrics']['f1']
-          print(f'Champion: {info[\"champion\"]}  F1={f1}')
-          if f1 < 0.70:
-              print('FAIL: F1 below 0.70')
-              sys.exit(1)
-          print('PASS')
-          "
+        run: python scripts/check_threshold.py
 
       - name: Upload model artifacts
         uses: actions/upload-artifact@v4
