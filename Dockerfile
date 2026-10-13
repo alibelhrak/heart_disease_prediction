@@ -15,6 +15,7 @@ WORKDIR /app
 COPY --from=builder /usr/local /usr/local
 
 # Copy project
+COPY src/ ./src/
 COPY api/ ./api/
 COPY frontend/ ./frontend/
 COPY models/ ./models/

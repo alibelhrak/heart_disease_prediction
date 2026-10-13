@@ -12,6 +12,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, UploadFile, File, HTTPException, Form
 from fastapi.middleware.cors import CORSMiddleware
 
+from src import features as F
+
 # ── Resolve project root regardless of working directory ──────────────────
 ROOT      = Path(__file__).resolve().parent.parent
 MODEL_DIR = ROOT / "models"
@@ -29,20 +31,24 @@ MODEL_FILES = {
     "XGBoost":            "xgboost_model.joblib",
 }
 
-BOOL_MAP     = {True:1,False:0,"True":1,"False":0,1:1,0:0,"true":1,"false":0,"1":1,"0":0}
-CP_VALS      = ["typical angina","atypical angina","non-anginal","asymptomatic"]
-RESTECG_VALS = ["normal","st-t abnormality","lv hypertrophy"]
-SLOPE_VALS   = ["upsloping","flat","downsloping"]
-THAL_VALS    = ["normal","fixed defect","reversable defect"]
-DATASET_VALS = ["Cleveland","Hungarian","Switzerland","VA Long Beach"]
-SEX_VALS     = ["Male","Female"]
+# Category lists and maps come from src/features.py (shared with training)
+BOOL_MAP     = F.BOOL_MAP
+CP_VALS      = F.CP_VALS
+RESTECG_VALS = F.RESTECG_VALS
+SLOPE_VALS   = F.SLOPE_VALS
+THAL_VALS    = F.THAL_VALS
+DATASET_VALS = F.DATASET_VALS
+SEX_VALS     = F.SEX_VALS
 
 
 def load_artifacts():
     global SCALER, FEATURES, MODEL_INFO
-    SCALER     = joblib.load(PROC_DIR / "scaler.joblib")
-    FEATURES   = json.load(open(PROC_DIR / "feature_names.json"))
-    MODEL_INFO = json.load(open(MODEL_DIR / "champion_info.json"))
+    MODELS.clear()
+    SCALER = joblib.load(PROC_DIR / "scaler.joblib")
+    with open(PROC_DIR / "feature_names.json") as fh:
+        FEATURES = json.load(fh)
+    with open(MODEL_DIR / "champion_info.json") as fh:
+        MODEL_INFO = json.load(fh)
     for name, fname in MODEL_FILES.items():
         path = MODEL_DIR / fname
         if path.exists():
@@ -72,6 +78,15 @@ def safe_float(val, default=0.0):
         return default
 
 
+def cat_or_default(row: dict, key: str, default: str) -> str:
+    """Return a categorical value, falling back to the default when it is
+    missing, None, NaN or blank (CSV cells that pandas read as NaN)."""
+    val = row.get(key)
+    if val is None or (isinstance(val, float) and np.isnan(val)) or str(val).strip() == "":
+        return default
+    return val
+
+
 def ohe(val, vals, prefix):
     return {f"{prefix}_{v}": (1 if str(val).strip() == v else 0) for v in vals}
 
@@ -91,15 +106,16 @@ def preprocess_row(row: dict) -> np.ndarray:
         "fbs":      float(BOOL_MAP.get(row.get("fbs"), 0)),
         "exang":    float(BOOL_MAP.get(row.get("exang"), 0)),
     }
-    encoded.update(ohe(row.get("sex","Male"),            SEX_VALS,     "sex"))
-    encoded.update(ohe(row.get("dataset","Cleveland"),   DATASET_VALS, "dataset"))
-    encoded.update(ohe(row.get("cp","asymptomatic"),     CP_VALS,      "cp"))
-    encoded.update(ohe(row.get("restecg","normal"),      RESTECG_VALS, "restecg"))
-    encoded.update(ohe(row.get("slope","flat"),          SLOPE_VALS,   "slope"))
-    encoded.update(ohe(row.get("thal","normal"),         THAL_VALS,    "thal"))
+    encoded.update(ohe(cat_or_default(row, "sex", "Male"),             SEX_VALS,     "sex"))
+    encoded.update(ohe(cat_or_default(row, "dataset", "Cleveland"),    DATASET_VALS, "dataset"))
+    encoded.update(ohe(cat_or_default(row, "cp", "asymptomatic"),      CP_VALS,      "cp"))
+    encoded.update(ohe(cat_or_default(row, "restecg", "normal"),       RESTECG_VALS, "restecg"))
+    encoded.update(ohe(cat_or_default(row, "slope", "flat"),           SLOPE_VALS,   "slope"))
+    encoded.update(ohe(cat_or_default(row, "thal", "normal"),          THAL_VALS,    "thal"))
 
-    encoded["age_group"]            = int(min(max((age - 30) // 10, 0), 3))
-    encoded["hr_age_ratio"]         = thalch / age if age > 0 else 0
+    # Engineered features: same functions as training (src/features.py)
+    encoded["age_group"]            = F.age_group(age)
+    encoded["hr_age_ratio"]         = F.hr_age_ratio(thalch, age)
     encoded["st_slope_interaction"] = oldpeak * encoded.get("slope_flat", 0)
     encoded["cp_severe"]            = encoded.get("cp_asymptomatic", 0)
 
