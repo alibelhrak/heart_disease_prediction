@@ -7,3 +7,7 @@ mlruns/
 mlflow.db
 .DS_Store
 models/*.joblib
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
