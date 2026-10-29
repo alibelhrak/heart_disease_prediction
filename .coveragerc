@@ -4,6 +4,7 @@ source =
     src
     api
     frontend
+    scripts
 omit =
     data/*
     tests/*

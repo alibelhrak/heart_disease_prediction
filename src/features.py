@@ -38,10 +38,34 @@ CATEGORIES = {
 BOOL_MAP = {True: 1, False: 0, "True": 1, "False": 0, "true": 1, "false": 0,
             1: 1, 0: 0, "1": 1, "0": 0}
 
+# Clinically plausible ranges for numeric inputs (inclusive). Shared by the
+# JSON request schema (api/schemas.py) and the CSV validation layer.
+NUMERIC_RANGES = {
+    "age":      (1, 120),
+    "trestbps": (50, 250),
+    "chol":     (0, 700),
+    "thalch":   (50, 250),
+    "oldpeak":  (-3.0, 10.0),
+    "ca":       (0, 3),
+}
+
 # Right-inclusive upper edges: (0,45] -> 0, (45,55] -> 1, (55,65] -> 2, >65 -> 3
 AGE_EDGES = [45, 55, 65]
 
 ENGINEERED = ["age_group", "hr_age_ratio", "st_slope_interaction", "cp_severe"]
+
+
+def canonical_category(col: str, val):
+    """Return the canonical spelling of a categorical value, ignoring case and
+    surrounding whitespace ("  male " -> "Male"). None if it is not a known
+    category of `col`."""
+    if val is None or (isinstance(val, float) and np.isnan(val)):
+        return None
+    key = str(val).strip().casefold()
+    for v in CATEGORIES[col]:
+        if v.casefold() == key:
+            return v
+    return None
 
 
 def age_group(age):

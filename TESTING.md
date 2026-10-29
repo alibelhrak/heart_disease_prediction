@@ -31,9 +31,17 @@ tests/
 │   ├── test_defuse_scaler_features.py   scaler + feature list def-use     (W6, Ali)
 │   ├── test_train_params.py             params.yaml → train()             (W6, Ali)
 │   └── test_defuse_result_store.py      RESULT_STORE def-use + leaks      (W6, Mohaned)
-└── integration/
-    ├── test_api_endpoints.py            api/ coverage gaps                (W7, Mohaned)
-    └── test_flask_routes.py             frontend/ coverage gaps           (W7, Mohaned)
+├── integration/
+│   ├── test_api_endpoints.py            api/ coverage gaps                (W7, Mohaned)
+│   └── test_flask_routes.py             frontend/ coverage gaps           (W7, Mohaned)
+└── functional/
+    ├── test_f1_gate_bva.py              BVA of the CI F1 gate (0.70)      (W8, Ali)
+    ├── test_properties.py               Hypothesis properties; training
+    │                                    vs serving consistency            (W8, Ali)
+    ├── test_categorical_ep.py           EP of categorical/boolean inputs  (W8, Mohaned)
+    ├── test_risk_bva.py                 BVA of risk cut-offs 0.40 / 0.70  (W8, Mohaned)
+    ├── test_decision_tables.py          Flask /predict + API /predict/csv (W8, Mohaned)
+    └── test_predict_json.py             JSON POST /predict: EP + BVA      (W8, Mohaned)
 ```
 
 ## Defects found by the tests
@@ -47,4 +55,8 @@ tests/
 | Results page crashed (ZeroDivisionError) when every row failed | `results.html` | `test_results_page_with_zero_patients_does_not_crash` | Guard division |
 | Training ignored `params.yaml` | `src/train.py` | `test_train_passes_params_to_every_grid` | `load_params()` + `build_grids()` |
 | MLflow ≥ 3 refused to log RandomForest (default skops format) | `src/train.py` | `pipeline_artifacts` fixture | `serialization_format="cloudpickle"` |
+| `safe_float("nan")` / `safe_float("inf")` returned NaN / inf, so a CSV cell containing the text `nan` made the row's feature vector non-finite and the row failed | `api/main.py` | `test_safe_float_always_finite` (Hypothesis) | Check `math.isfinite` after conversion |
+| Categories were case-sensitive: `"male"`, `"FEMALE"`, `"Asymptomatic"` were silently encoded as all zeros (neither category) | `api/main.py` | `test_v2_case_and_whitespace_variants` | `features.canonical_category()` |
+| A blank `id` cell made `int(NaN)` fail, so the whole patient was dropped into `errors` | `api/main.py` | `test_blank_id_cell_still_scored` | `row_identifier()` falls back to the row number |
+| The F1 gate was a top-level script and could not be tested | `scripts/check_threshold.py` | `test_f1_gate_bva.py` | `passes()` + `main()` |
 | ROC-AUC with single-class labels raised or returned NaN depending on scikit-learn version | `src/train.py` | `test_single_class_ground_truth_gives_nan_auc` | Explicit branch |
