@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src import features as F
 from api.schemas import PatientIn
+from api.validation import CSVValidationError, validate_frame
 
 # ── Resolve project root regardless of working directory ──────────────────
 ROOT      = Path(__file__).resolve().parent.parent
@@ -187,10 +188,19 @@ async def predict_csv(file: UploadFile = File(...), model_name: str = Form("cham
         raise HTTPException(400, f"Could not parse CSV: {e}")
 
     model_name, model = resolve_model(model_name)
+    df_raw = df_raw.rename(columns=lambda c: str(c).strip())
+    try:
+        row_errors, warnings = validate_frame(df_raw)
+    except CSVValidationError as e:
+        raise HTTPException(400, str(e))
+
     results = []
     errors  = []
 
     for idx, row in df_raw.iterrows():
+        if idx in row_errors:
+            errors.append({"row": int(idx), "error": "; ".join(row_errors[idx])})
+            continue
         try:
             d    = row.to_dict()
             X    = preprocess_row(d)
@@ -229,6 +239,7 @@ async def predict_csv(file: UploadFile = File(...), model_name: str = Form("cham
         "model_metrics":    metrics,
         "results":          results,
         "errors":           errors,
+        "warnings":         warnings,
     }
 
 

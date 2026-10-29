@@ -14,7 +14,10 @@ dataset is pushed through the real `preprocess → train` pipeline once per
 session inside a pytest temporary directory (`pipeline_artifacts` fixture in
 `tests/conftest.py`), and every test that needs a scaler, feature list or
 model uses those artifacts. The FastAPI backend is stubbed with
-`requests-mock` for all Flask tests.
+`requests-mock` for the Flask unit tests; `test_flask_fastapi_live.py` instead
+starts the real FastAPI app in a uvicorn server on a free local port.
+`test_model_quality.py` trains with the real `params.yaml` grids on the
+920-row dataset from `data/raw/generate.py` (about 20 seconds, once per session).
 
 ## Layout
 
@@ -33,7 +36,12 @@ tests/
 │   └── test_defuse_result_store.py      RESULT_STORE def-use + leaks      (W6, Mohaned)
 ├── integration/
 │   ├── test_api_endpoints.py            api/ coverage gaps                (W7, Mohaned)
-│   └── test_flask_routes.py             frontend/ coverage gaps           (W7, Mohaned)
+│   ├── test_flask_routes.py             frontend/ coverage gaps           (W7, Mohaned)
+│   ├── test_pipeline_contract.py        preprocess → train → API contract (W9, Ali)
+│   ├── test_model_quality.py            quality on the 920-row dataset,
+│   │                                    determinism of the pipeline       (W9, Ali)
+│   ├── test_csv_validation.py           CSV validation layer + results UI (W9, Mohaned)
+│   └── test_flask_fastapi_live.py       Flask ↔ real FastAPI over HTTP    (W9, Mohaned)
 └── functional/
     ├── test_f1_gate_bva.py              BVA of the CI F1 gate (0.70)      (W8, Ali)
     ├── test_properties.py               Hypothesis properties; training
@@ -58,5 +66,8 @@ tests/
 | `safe_float("nan")` / `safe_float("inf")` returned NaN / inf, so a CSV cell containing the text `nan` made the row's feature vector non-finite and the row failed | `api/main.py` | `test_safe_float_always_finite` (Hypothesis) | Check `math.isfinite` after conversion |
 | Categories were case-sensitive: `"male"`, `"FEMALE"`, `"Asymptomatic"` were silently encoded as all zeros (neither category) | `api/main.py` | `test_v2_case_and_whitespace_variants` | `features.canonical_category()` |
 | A blank `id` cell made `int(NaN)` fail, so the whole patient was dropped into `errors` | `api/main.py` | `test_blank_id_cell_still_scored` | `row_identifier()` falls back to the row number |
+| Invalid CSV values (unknown category such as `Mael`, age 450, cholesterol `high`) were silently replaced by defaults and the patient was scored anyway | `api/main.py` | `test_invalid_rows_are_reported_not_scored` | `api/validation.py`: invalid rows go to `errors`, missing columns to `warnings` |
+| Skipped rows were never shown in the web UI | `results.html` | `test_results_page_lists_skipped_rows_and_warnings` | Notices block on the results page |
+| When FastAPI rejected a request, Flask showed only "400 Client Error" and dropped the backend's reason | `frontend/app.py` | `test_backend_rejection_is_reported` (live), `test_backend_error_detail_is_shown` | `backend_error()` shows FastAPI's `detail` |
 | The F1 gate was a top-level script and could not be tested | `scripts/check_threshold.py` | `test_f1_gate_bva.py` | `passes()` + `main()` |
 | ROC-AUC with single-class labels raised or returned NaN depending on scikit-learn version | `src/train.py` | `test_single_class_ground_truth_gives_nan_auc` | Explicit branch |

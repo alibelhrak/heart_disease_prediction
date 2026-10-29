@@ -155,7 +155,8 @@ heart-disease-mlops/
 |---|---|---|
 | GET | `/` | Health check |
 | GET | `/models` | List models + metrics |
-| POST | `/predict/csv` | Upload CSV → JSON predictions |
+| POST | `/predict/csv` | Upload CSV → JSON predictions (invalid rows reported in `errors`, missing columns in `warnings`) |
+| POST | `/predict` | One patient as JSON → prediction (validated; invalid input → 422) |
 
 ---
 

@@ -69,3 +69,25 @@ def test_success_forwards_file_and_model(flask_client, fastapi_stub):
     assert resp.status_code == 302 and resp.location.endswith("/results")
     sent = fastapi_stub.last_request
     assert b"61" in sent.body and b"XGBoost" in sent.body
+
+
+
+# Week 9 (Mohaned) — the backend's reason is shown, not just the status line
+@pytest.mark.parametrize("body, shown", [
+    ({"detail": "Unknown model 'SVM'"}, "Unknown model"),
+    ({"detail": [{"msg": "Input should be greater than or equal to 1"}]},
+     "greater than or equal to 1"),
+    ({"detail": ["plain"]}, "plain"),
+    ({"other": "x"}, "HTTP 400"),
+    ([1, 2], "HTTP 400"),
+])
+def test_backend_error_detail_is_shown(flask_client, flask_app, requests_mock, body, shown):
+    requests_mock.post(f"{flask_app.FASTAPI_URL}/predict/csv", status_code=400, json=body)
+    html = _error_text(upload(flask_client))
+    assert "Prediction failed" in html and shown in html.replace("&#39;", "'")
+
+
+def test_backend_error_non_json(flask_client, flask_app, requests_mock):
+    requests_mock.post(f"{flask_app.FASTAPI_URL}/predict/csv", status_code=502,
+                       text="Bad Gateway", reason="Bad Gateway")
+    assert "HTTP 502 Bad Gateway" in _error_text(upload(flask_client))

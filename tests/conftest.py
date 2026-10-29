@@ -82,14 +82,15 @@ def raw_df():
 
 
 # ── Real pipeline run into a temp directory (once per session) ─────────────
-@pytest.fixture(scope="session")
-def pipeline_artifacts(tmp_path_factory):
+def run_pipeline(base: Path, raw: pd.DataFrame, params: dict = None) -> SimpleNamespace:
+    """Run the real preprocess -> train stages into `base` and return the paths.
+    params=None uses the repository's params.yaml."""
     from src import preprocess, train
 
-    base = tmp_path_factory.mktemp("pipeline")
+    base.mkdir(parents=True, exist_ok=True)
     raw_csv = base / "raw.csv"
     proc_dir, model_dir = base / "processed", base / "models"
-    make_raw_df(n=160, seed=1).to_csv(raw_csv, index=False)
+    raw.to_csv(raw_csv, index=False)
 
     with pytest.MonkeyPatch.context() as mp:
         mp.chdir(base)                       # MLflow writes its artifacts here
@@ -98,12 +99,36 @@ def pipeline_artifacts(tmp_path_factory):
         mp.setattr(preprocess, "PROC", proc_dir)
         mp.setattr(train, "PROC", proc_dir)
         mp.setattr(train, "MODEL_DIR", model_dir)
-        with contextlib.redirect_stdout(io.StringIO()):
-            preprocess.preprocess(TINY_PARAMS)
-            train.train(TINY_PARAMS)
+        with contextlib.redirect_stdout(io.StringIO()), \
+                contextlib.redirect_stderr(io.StringIO()):
+            preprocess.preprocess(params)
+            train.train(params)
 
     return SimpleNamespace(base=base, raw_csv=raw_csv,
                            proc_dir=proc_dir, model_dir=model_dir)
+
+
+def generated_dataset(base: Path) -> pd.DataFrame:
+    """The project's own 920-row dataset from data/raw/generate.py."""
+    import runpy
+    (base / "data" / "raw").mkdir(parents=True, exist_ok=True)
+    with pytest.MonkeyPatch.context() as mp, contextlib.redirect_stdout(io.StringIO()):
+        mp.chdir(base)
+        runpy.run_path(str(ROOT / "data" / "raw" / "generate.py"))
+    return pd.read_csv(base / "data" / "raw" / "heart_disease_uci.csv")
+
+
+@pytest.fixture(scope="session")
+def pipeline_artifacts(tmp_path_factory):
+    base = tmp_path_factory.mktemp("pipeline")
+    return run_pipeline(base, make_raw_df(n=160, seed=1), TINY_PARAMS)
+
+
+@pytest.fixture(scope="session")
+def full_pipeline(tmp_path_factory):
+    """params.yaml grids on the 920-row generated dataset (~20 s, once)."""
+    base = tmp_path_factory.mktemp("full")
+    return run_pipeline(base / "run", generated_dataset(base))
 
 
 # ── FastAPI ─────────────────────────────────────────────────────────────────

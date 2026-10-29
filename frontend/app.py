@@ -53,6 +53,19 @@ def results_to_csv(results: list) -> bytes:
         writer.writerow(["" if r.get(c) is None else r.get(c) for c in EXPORT_COLS])
     return buf.getvalue().encode("utf-8")
 
+def backend_error(resp) -> str:
+    """The reason FastAPI gave for rejecting a request (its `detail`),
+    falling back to the HTTP status line."""
+    try:
+        detail = resp.json().get("detail")
+    except (ValueError, AttributeError):
+        detail = None
+    if isinstance(detail, list):              # FastAPI 422 validation errors
+        detail = "; ".join(str(d.get("msg", d)) if isinstance(d, dict) else str(d)
+                           for d in detail)
+    return detail or f"HTTP {resp.status_code} {resp.reason or ''}".strip()
+
+
 FASTAPI_URL  = os.environ.get("FASTAPI_URL", "http://localhost:8000")
 
 
@@ -84,7 +97,9 @@ def predict():
             data={"model_name": model_name},
             timeout=120,
         )
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            return render_template("upload.html",
+                error=f"Prediction failed: {backend_error(resp)}")
         data = resp.json()
 
     except requests.exceptions.ConnectionError:

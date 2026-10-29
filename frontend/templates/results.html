@@ -111,6 +111,11 @@ tbody tr:hover td{background:#FAFAF8}
 .pg-btn.active{background:var(--text);color:white;border-color:var(--text)}
 .pg-btn:disabled{opacity:.4;cursor:not-allowed}
 
+.notices{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+.notice{font-size:13px;border-radius:var(--radius-sm);padding:10px 14px;border:1px solid var(--border)}
+.notice ul{margin:6px 0 0 18px}
+.notice-warn{background:var(--amber-light);color:var(--amber)}
+.notice-err{background:var(--red-light);color:var(--red)}
 .section-label{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--hint);margin-bottom:12px}
 
 .empty-state{padding:60px;text-align:center;color:var(--muted);font-size:14px}
@@ -164,6 +169,26 @@ tbody tr:hover td{background:#FAFAF8}
       </a>
     </div>
   </div>
+
+  {% if data.errors or data.warnings %}
+  <!-- Validation notices from the API (rows skipped, columns missing) -->
+  <div class="notices" id="validation-notices">
+    {% for w in data.warnings or [] %}
+    <div class="notice notice-warn">{{ w }}</div>
+    {% endfor %}
+    {% if data.errors %}
+    <div class="notice notice-err">
+      {{ data.errors|length }} row{{ "s" if data.errors|length != 1 }} skipped:
+      <ul>
+        {% for e in data.errors[:20] %}
+        <li>Row {{ e.row + 1 }}: {{ e.error }}</li>
+        {% endfor %}
+        {% if data.errors|length > 20 %}<li>… and {{ data.errors|length - 20 }} more</li>{% endif %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <!-- Metric cards -->
   <div class="metrics-row">
